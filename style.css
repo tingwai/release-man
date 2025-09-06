@@ -412,6 +412,20 @@ input[type="text"]:focus {
     text-decoration: underline;
 }
 
+/* Branch and package links */
+.branch-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    font-family: var(--font-family);
+    transition: color 0.2s ease;
+}
+
+.branch-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
 /* Error Messages */
 .error {
     color: var(--danger);

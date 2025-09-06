@@ -9,13 +9,11 @@ class GitHubAPI {
     const headers = {
       Accept: "application/vnd.github.v3+json",
     };
-
     if (this.token) {
       headers["Authorization"] = `token ${this.token}`;
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, { headers });
-
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
     }
@@ -57,12 +55,16 @@ class GitHubAPI {
     }
   }
 
-  async getPackageJson(owner, repo) {
+  async getPackageJson(owner, repo, branch = null) {
     try {
       // For continuedev/continue, use the VSCode extension package.json
       const path = owner === "continuedev" && repo === "continue" ? "extensions/vscode/package.json" : "package.json";
 
-      const response = await this.request(`/repos/${owner}/${repo}/contents/${path}`);
+      const endpoint = branch
+        ? `/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
+        : `/repos/${owner}/${repo}/contents/${path}`;
+
+      const response = await this.request(endpoint);
       const content = atob(response.content);
       return JSON.parse(content);
     } catch (error) {
@@ -332,10 +334,14 @@ class ReleaseApp {
     const latestPrerelease = vscodeReleases.find((release) => release.prerelease);
 
     // Use the latest pre-release as the base branch for creating the release branch
-    const baseBranch = latestPrerelease ? latestPrerelease.tag_name : `v${cleanVersion.split('.')[0]}.${parseInt(cleanVersion.split('.')[1]) + 1}.x-vscode`;
+    const baseBranch = latestPrerelease
+      ? latestPrerelease.tag_name
+      : `v${cleanVersion.split(".")[0]}.${parseInt(cleanVersion.split(".")[1]) + 1}.x-vscode`;
 
     // Get previous version for GitHub release (should be the latest stable release)
-    const previousVersion = latestRelease ? latestRelease.tag_name : `v${cleanVersion.split('.')[0]}.${cleanVersion.split('.')[1]}.0-vscode`;
+    const previousVersion = latestRelease
+      ? latestRelease.tag_name
+      : `v${cleanVersion.split(".")[0]}.${cleanVersion.split(".")[1]}.0-vscode`;
 
     // Update all commands and references
     document.getElementById("branch-command").textContent = `git checkout -b ${version}-vscode-release ${baseBranch}`;
@@ -378,36 +384,76 @@ class ReleaseApp {
     // Check Step 1: Release branch exists
     try {
       const branchExists = await this.api.checkBranchExists(owner, repo, releaseBranchName);
-      const step1Check = document.getElementById('step1-check');
+      const step1Check = document.getElementById("step1-check");
+      const branchUrl = `https://github.com/${owner}/${repo}/tree/${releaseBranchName}`;
 
       if (branchExists) {
-        this.updateCheckStatus(step1Check, true, 'Release branch exists ✓');
+        this.updateCheckStatus(
+          step1Check,
+          true,
+          `<a href="${branchUrl}" target="_blank" class="branch-link">${releaseBranchName}</a> ✓`
+        );
       } else {
-        this.updateCheckStatus(step1Check, false, 'Run command to create branch');
+        this.updateCheckStatus(step1Check, false, "Release branch missing. Run command to create branch");
       }
     } catch (error) {
-      const step1Check = document.getElementById('step1-check');
-      this.updateCheckStatus(step1Check, false, 'Error checking release branch');
+      const step1Check = document.getElementById("step1-check");
+      this.updateCheckStatus(step1Check, false, "Error checking release branch");
+    }
+
+    // Check Step 2: Package.json version updated (only if branch exists)
+    try {
+      const branchExists = await this.api.checkBranchExists(owner, repo, releaseBranchName);
+      const step2Check = document.getElementById("step2-check");
+
+      if (branchExists) {
+        // Get package.json from release branch
+        const branchPackageJson = await this.api.getPackageJson(owner, repo, releaseBranchName);
+        const expectedVersion = version.replace(/^v/, "");
+        const actualVersion = branchPackageJson.version;
+        const packageJsonPath =
+          owner === "continuedev" && repo === "continue" ? "extensions/vscode/package.json" : "package.json";
+        const packageJsonUrl = `https://github.com/${owner}/${repo}/blob/${releaseBranchName}/${packageJsonPath}`;
+
+        if (actualVersion === expectedVersion) {
+          this.updateCheckStatus(
+            step2Check,
+            true,
+            `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version = v${actualVersion}</a>`
+          );
+        } else {
+          this.updateCheckStatus(
+            step2Check,
+            false,
+            `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version = v${actualVersion}</a> needs v${expectedVersion}`
+          );
+        }
+      } else {
+        this.updateCheckStatus(step2Check, false, "Create release branch first");
+      }
+    } catch (error) {
+      const step2Check = document.getElementById("step2-check");
+      this.updateCheckStatus(step2Check, false, "Error checking package.json version");
     }
 
     // Additional checks can be added here for other steps
   }
 
   updateCheckStatus(checkElement, isValid, message) {
-    const indicator = checkElement.querySelector('.indicator');
-    const text = checkElement.querySelector('span:last-child');
+    const indicator = checkElement.querySelector(".indicator");
+    const text = checkElement.querySelector("span:last-child");
 
     if (isValid) {
-      checkElement.className = 'check-item success';
-      indicator.textContent = '✅';
-      indicator.className = 'indicator success';
+      checkElement.className = "check-item success";
+      indicator.textContent = "✅";
+      indicator.className = "indicator success";
     } else {
-      checkElement.className = 'check-item danger';
-      indicator.textContent = '❌';
-      indicator.className = 'indicator danger';
+      checkElement.className = "check-item danger";
+      indicator.textContent = "❌";
+      indicator.className = "indicator danger";
     }
 
-    text.textContent = message;
+    text.innerHTML = message; // Use innerHTML to support links
   }
 
   showSection(sectionId) {

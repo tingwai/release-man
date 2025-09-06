@@ -24,10 +24,10 @@
             <div class="error" id="repo-error"></div>
         </section>
 
-        <!-- Current Status (Hidden initially) -->
+        <!-- Current Releases (Hidden initially) -->
         <section class="card hidden" id="current-status">
             <div class="card-header">
-                <h2>📊 Current Status</h2>
+                <h2>📊 Current Releases</h2>
                 <span class="status-badge" id="status-badge">Auto-refreshed</span>
             </div>
             <div class="status-grid">
@@ -82,12 +82,12 @@
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 2: Update Package Version</h4>
-                        <span class="step-indicator pending" id="step3-indicator">⏳</span>
+                        <span class="step-indicator pending" id="step2-indicator">⏳</span>
                     </div>
                     <p class="step-instruction">Bump version to <strong id="target-version">1.2.5</strong> in <code>extensions/vscode/package.json</code></p>
-                    <div class="check-item" id="step3-check">
+                    <div class="check-item" id="step2-check">
                         <span class="indicator pending">⏳</span>
-                        <span>Package.json version updated</span>
+                        <span>Package.json version status</span>
                     </div>
                 </div>
 
@@ -109,25 +109,12 @@
 
                 <div class="step-group">
                     <div class="step-header">
-                        <h4>Step 5: Commit Changes</h4>
+                        <h4>Step 5: Push Release Branch</h4>
                         <span class="step-indicator pending" id="step6-indicator">⏳</span>
-                    </div>
-                    <code class="command" id="commit-command">git add extensions/vscode/package.json && git commit -m "Bump version to 1.2.5"</code>
-                    <button class="copy-btn" onclick="copyToClipboard('commit-command')">Copy</button>
-                    <div class="check-item" id="step6-check">
-                        <span class="indicator pending">⏳</span>
-                        <span>Changes committed</span>
-                    </div>
-                </div>
-
-                <div class="step-group">
-                    <div class="step-header">
-                        <h4>Step 6: Push Release Branch</h4>
-                        <span class="step-indicator pending" id="step7-indicator">⏳</span>
                     </div>
                     <code class="command" id="push-command">git push origin v1.2.5-vscode-release</code>
                     <button class="copy-btn" onclick="copyToClipboard('push-command')">Copy</button>
-                    <div class="check-item" id="step7-check">
+                    <div class="check-item" id="step5-check">
                         <span class="indicator pending">⏳</span>
                         <span>Release branch pushed</span>
                     </div>
@@ -135,8 +122,8 @@
 
                 <div class="step-group">
                     <div class="step-header">
-                        <h4>Step 7: Create GitHub Release</h4>
-                        <span class="step-indicator manual" id="step8-indicator">👤</span>
+                        <h4>Step 6: Create GitHub Release</h4>
+                        <span class="step-indicator manual" id="step6-indicator">👤</span>
                     </div>
                     <div class="github-release-instructions">
                         <p>Go to <a href="https://github.com/continuedev/continue/releases/new" target="_blank" class="external-link">GitHub Releases</a> and:</p>
@@ -149,7 +136,7 @@
                             <li>Click "Publish release" 🚀</li>
                         </ol>
                     </div>
-                    <div class="check-item" id="step8-check">
+                    <div class="check-item" id="step6-check">
                         <span class="indicator pending">⏳</span>
                         <span>GitHub release published</span>
                     </div>
