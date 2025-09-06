@@ -28,53 +28,49 @@
         <section class="card hidden" id="current-status">
             <div class="card-header">
                 <h2>📊 Current Releases</h2>
-                <span class="status-badge" id="status-badge">Auto-refreshed</span>
             </div>
             <div class="status-grid">
                 <div class="status-item">
                     <label>Latest Release:</label>
-                    <span id="latest-release">-</span>
+                    <div class="release-info">
+                        <span id="latest-release">-</span>
+                        <small id="release-date" class="release-date"></small>
+                    </div>
                 </div>
                 <div class="status-item">
                     <label>Latest Pre-release:</label>
-                    <span id="latest-prerelease">-</span>
-                </div>
-                <div class="status-item">
-                    <label>Package.json:</label>
-                    <span id="package-version">-</span>
-                    <span id="version-match" class="indicator"></span>
-                </div>
-                <div class="status-item">
-                    <label>Last Updated:</label>
-                    <span id="last-updated">-</span>
-                </div>
-                <div class="status-item">
-                    <label>Commits since:</label>
-                    <span id="commits-since">-</span>
+                    <div class="release-info">
+                        <span id="latest-prerelease">-</span>
+                        <small id="prerelease-date" class="release-date"></small>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Plan Release (Hidden initially) -->
+        <!-- Promote Pre-Release to Release (Hidden initially) -->
         <section class="card hidden" id="plan-release">
-            <h2>🚀 Plan Release</h2>
-            <div class="input-group">
-                <label for="version-input">Target Release Version:</label>
-                <input type="text" id="version-input" placeholder="v1.2.5" autocomplete="off">
+            <h2>🚀 Promote Pre-Release to Release</h2>
+            <div class="version-inputs-row">
+                <div class="input-pair">
+                    <label for="target-release-version">Target Release Version:</label>
+                    <input type="text" id="target-release-version" placeholder="v1.2.5" autocomplete="off">
+                </div>
+                <div class="input-pair">
+                    <label for="from-prerelease-version">From Pre-release Version:</label>
+                    <input type="text" id="from-prerelease-version" placeholder="v1.3.0-vscode" autocomplete="off">
+                </div>
             </div>
 
             <div class="release-steps-section hidden" id="release-process">
-                <h3>📋 Release Process:</h3>
-
                 <div class="step-group">
                     <div class="step-header">
-                        <h4>Step 1: Create Release Branch</h4>
-                        <span class="step-indicator pending" id="step1-indicator">⏳</span>
+                        <h4>Step 1: Create release branch</h4>
                     </div>
-                    <code class="command" id="branch-command">git branch v1.2.5-vscode-release v1.3.x-vscode</code>
-                    <button class="copy-btn" onclick="copyToClipboard('branch-command')">Copy</button>
-                    <div class="check-item" id="step1-check">
-                        <span class="indicator pending">⏳</span>
+                    <div class="command-group">
+                        <code class="command" id="create-release-branch-command">git branch v1.2.5-vscode-release v1.3.x-vscode</code>
+                        <span class="copy-btn" onclick="copyToClipboard('create-release-branch-command')">📋</span>
+                    </div>
+                    <div class="check-item" id="release-branch-exists-check">
                         <span>Release branch status</span>
                     </div>
                 </div>
@@ -82,11 +78,9 @@
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 2: Update Package Version</h4>
-                        <span class="step-indicator pending" id="step2-indicator">⏳</span>
                     </div>
                     <p class="step-instruction">Bump version to <strong id="target-version">1.2.5</strong> in <code>extensions/vscode/package.json</code></p>
-                    <div class="check-item" id="step2-check">
-                        <span class="indicator pending">⏳</span>
+                    <div class="check-item" id="package-version-check">
                         <span>Package.json version status</span>
                     </div>
                 </div>
@@ -94,50 +88,40 @@
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 3: Cherry-pick Hotfixes (Optional)</h4>
-                        <span class="step-indicator manual" id="step4-indicator">👤</span>
                     </div>
-                    <p class="step-instruction">Run <code>git cherry-pick &lt;commit-hash&gt;</code> for any regression fixes</p>
+                    <p class="step-instruction"><code>git cherry-pick &lt;commit-hash&gt;</code> for any regression fixes</p>
                 </div>
 
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 4: Smoke Testing</h4>
-                        <span class="step-indicator manual" id="step5-indicator">👤</span>
                     </div>
-                    <p class="step-instruction">Perform necessary smoke testing</p>
                 </div>
 
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 5: Push Release Branch</h4>
-                        <span class="step-indicator pending" id="step6-indicator">⏳</span>
                     </div>
-                    <code class="command" id="push-command">git push origin v1.2.5-vscode-release</code>
-                    <button class="copy-btn" onclick="copyToClipboard('push-command')">Copy</button>
-                    <div class="check-item" id="step5-check">
-                        <span class="indicator pending">⏳</span>
-                        <span>Release branch pushed</span>
+                    <div class="command-group">
+                        <code class="command" id="push-release-branch-command">git push origin v1.2.5-vscode-release</code>
+                        <span class="copy-btn" onclick="copyToClipboard('push-release-branch-command')">📋</span>
+                    </div>
+                    <div class="cherry-pick-info" id="cherry-picked-commits-info" style="display: none;">
+                        <h5>📋 Cherry-picked commits:</h5>
+                        <ul id="cherry-picked-commits-list"></ul>
+                        <a id="github-compare-link" href="#" target="_blank" class="external-link">View full comparison on GitHub</a>
                     </div>
                 </div>
 
                 <div class="step-group">
                     <div class="step-header">
                         <h4>Step 6: Create GitHub Release</h4>
-                        <span class="step-indicator manual" id="step6-indicator">👤</span>
                     </div>
                     <div class="github-release-instructions">
-                        <p>Go to <a href="https://github.com/continuedev/continue/releases/new" target="_blank" class="external-link">GitHub Releases</a> and:</p>
-                        <ol>
-                            <li>Target branch: <strong id="target-branch">v1.2.5-vscode-release</strong></li>
-                            <li>Create tag: <strong id="target-tag">v1.2.5-vscode</strong></li>
-                            <li>Set previous tag to: <strong id="previous-tag">v1.2.4-vscode</strong></li>
-                            <li>Click "Generate release notes"</li>
-                            <li>Check "Set as the latest release"</li>
-                            <li>Click "Publish release" 🚀</li>
-                        </ol>
+                        <p><a id="create-release-link" href="#" target="_blank" class="btn btn-primary">🚀 Create GitHub Release</a></p>
+                        <p class="step-instruction">This will open GitHub, select Previous tag: ${latest-release}, click "Generate release notes" and "Publish release"!</p>
                     </div>
-                    <div class="check-item" id="step6-check">
-                        <span class="indicator pending">⏳</span>
+                    <div class="check-item" id="github-release-published-check">
                         <span>GitHub release published</span>
                     </div>
                 </div>

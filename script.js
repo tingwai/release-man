@@ -46,6 +46,14 @@ class GitHubAPI {
     }
   }
 
+  async compareCommits(owner, repo, base, head) {
+    try {
+      return await this.request(`/repos/${owner}/${repo}/compare/${base}...${head}`);
+    } catch {
+      return null;
+    }
+  }
+
   async checkTagExists(owner, repo, tagName) {
     try {
       await this.request(`/repos/${owner}/${repo}/git/refs/tags/${tagName}`);
@@ -66,7 +74,19 @@ class GitHubAPI {
 
       const response = await this.request(endpoint);
       const content = atob(response.content);
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+
+      // Find line number of version field
+      const lines = content.split('\n');
+      let versionLineNumber = null;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('"version"') && lines[i].includes(':')) {
+          versionLineNumber = i + 1; // GitHub uses 1-based line numbers
+          break;
+        }
+      }
+
+      return { ...parsed, _versionLineNumber: versionLineNumber };
     } catch (error) {
       throw new Error("package.json not found");
     }
@@ -155,19 +175,29 @@ class ReleaseApp {
     document.getElementById("repo-input").addEventListener("keypress", (e) => {
       if (e.key === "Enter") this.analyzeRepo();
     });
-    document.getElementById("version-input").addEventListener("input", () => this.validateVersion());
+    document.getElementById("target-release-version").addEventListener("input", () => this.validateVersion());
+    document.getElementById("from-prerelease-version").addEventListener("input", () => this.validateVersion());
 
     // Copy functionality
     window.copyToClipboard = (elementId) => {
       const element = document.getElementById(elementId);
       const text = element.textContent;
+
+      // Clear any existing selection to prevent text highlighting
+      window.getSelection().removeAllRanges();
+
       navigator.clipboard.writeText(text).then(() => {
         const button = element.nextElementSibling;
-        const originalText = button.textContent;
-        button.textContent = "Copied!";
+        const originalEmoji = button.textContent;
+
+        // Add copied class and change emoji
+        button.classList.add("copied");
+        button.textContent = "✅";
+
         setTimeout(() => {
-          button.textContent = originalText;
-        }, 2000);
+          button.classList.remove("copied");
+          button.textContent = originalEmoji;
+        }, 1000);
       });
     };
   }
@@ -208,15 +238,15 @@ class ReleaseApp {
     this.showLoading();
 
     try {
-      // Fetch repo data
-      this.repoData = await this.api.getRepo(owner, repo);
-      this.releases = await this.api.getReleases(owner, repo);
+      // Fetch initial data in parallel
+      const [repoData, releases] = await Promise.all([
+        this.api.getRepo(owner, repo),
+        this.api.getReleases(owner, repo),
+      ]);
 
-      try {
-        this.packageData = await this.api.getPackageJson(owner, repo);
-      } catch {
-        this.packageData = null;
-      }
+      this.repoData = repoData;
+      this.releases = releases;
+      this.packageData = null; // Will be fetched when needed for branch checking
 
       this.currentRepo = { owner, repo };
       await this.updateCurrentStatus();
@@ -238,55 +268,46 @@ class ReleaseApp {
 
     const { owner, repo } = this.currentRepo;
 
-    // Update latest release with hyperlink
+    // Update latest release with hyperlink and date
     const latestReleaseElement = document.getElementById("latest-release");
+    const releaseDateElement = document.getElementById("release-date");
     if (latestRelease) {
       const releaseUrl = `https://github.com/${owner}/${repo}/releases/tag/${latestRelease.tag_name}`;
       latestReleaseElement.innerHTML = `<a href="${releaseUrl}" target="_blank" class="release-link">${latestRelease.tag_name}</a>`;
+      releaseDateElement.textContent = new Date(latestRelease.published_at).toLocaleDateString("en-US", {
+        month: "numeric",
+        day: "numeric",
+        year: "numeric"
+      });
     } else {
       latestReleaseElement.textContent = "No releases";
+      releaseDateElement.textContent = "";
     }
 
-    // Update latest pre-release with hyperlink
+    // Update latest pre-release with hyperlink and date
     const latestPrereleaseElement = document.getElementById("latest-prerelease");
+    const prereleaseDateElement = document.getElementById("prerelease-date");
     if (latestPrerelease) {
       const prereleaseUrl = `https://github.com/${owner}/${repo}/releases/tag/${latestPrerelease.tag_name}`;
       latestPrereleaseElement.innerHTML = `<a href="${prereleaseUrl}" target="_blank" class="release-link">${latestPrerelease.tag_name}</a>`;
+      prereleaseDateElement.textContent = new Date(latestPrerelease.published_at).toLocaleDateString("en-US", {
+        month: "numeric",
+        day: "numeric",
+        year: "numeric"
+      });
     } else {
       latestPrereleaseElement.textContent = "No pre-releases";
+      prereleaseDateElement.textContent = "";
     }
 
-    // Update package.json version
-    if (this.packageData) {
-      const packageVersion = `v${this.packageData.version}`;
-      document.getElementById("package-version").textContent = packageVersion;
-
-      const versionMatch = document.getElementById("version-match");
-      if (latestRelease && packageVersion === latestRelease.tag_name) {
-        versionMatch.textContent = "✅";
-        versionMatch.className = "indicator success";
-      } else {
-        versionMatch.textContent = "❌";
-        versionMatch.className = "indicator danger";
-      }
-    } else {
-      document.getElementById("package-version").textContent = "Not found";
-      document.getElementById("version-match").textContent = "❌";
-      document.getElementById("version-match").className = "indicator danger";
-    }
-
-    // Update last updated
-    document.getElementById("last-updated").textContent = latestRelease
-      ? new Date(latestRelease.published_at).toLocaleDateString()
-      : "-";
-
-    // Update commits since (placeholder for now)
-    document.getElementById("commits-since").textContent = "TBD";
-
-    // Pre-fill version input with next patch version and show release process
+    // Pre-fill version inputs and show release process
     if (latestRelease) {
       const nextVersion = this.getNextPatchVersion(latestRelease.tag_name);
-      document.getElementById("version-input").value = nextVersion;
+      document.getElementById("target-release-version").value = nextVersion;
+
+      // Pre-fill from-version with latest pre-release
+      const fromVersion = latestPrerelease ? latestPrerelease.tag_name : "";
+      document.getElementById("from-prerelease-version").value = fromVersion;
 
       // Automatically show release process with default version
       this.generateReleaseSteps(nextVersion);
@@ -296,7 +317,7 @@ class ReleaseApp {
   }
 
   async validateVersion() {
-    const versionInput = document.getElementById("version-input").value.trim();
+    const versionInput = document.getElementById("target-release-version").value.trim();
 
     // Only update steps if version is valid, otherwise keep existing steps
     if (versionInput && VersionUtils.isValidSemver(versionInput)) {
@@ -329,30 +350,36 @@ class ReleaseApp {
 
   generateReleaseSteps(version) {
     const cleanVersion = version.replace(/^v/, "");
-    const vscodeReleases = this.releases.filter((release) => release.tag_name.endsWith("-vscode"));
-    const latestRelease = vscodeReleases.find((release) => !release.prerelease);
-    const latestPrerelease = vscodeReleases.find((release) => release.prerelease);
 
-    // Use the latest pre-release as the base branch for creating the release branch
-    const baseBranch = latestPrerelease
-      ? latestPrerelease.tag_name
-      : `v${cleanVersion.split(".")[0]}.${parseInt(cleanVersion.split(".")[1]) + 1}.x-vscode`;
-
-    // Get previous version for GitHub release (should be the latest stable release)
-    const previousVersion = latestRelease
-      ? latestRelease.tag_name
-      : `v${cleanVersion.split(".")[0]}.${cleanVersion.split(".")[1]}.0-vscode`;
+    // Get base branch from the from-version input
+    const fromVersionInput = document.getElementById("from-prerelease-version").value.trim();
+    const baseBranch =
+      fromVersionInput || `v${cleanVersion.split(".")[0]}.${parseInt(cleanVersion.split(".")[1]) + 1}.x-vscode`;
 
     // Update all commands and references
-    document.getElementById("branch-command").textContent = `git checkout -b ${version}-vscode-release ${baseBranch}`;
-    document.getElementById("target-version").textContent = cleanVersion;
     document.getElementById(
-      "commit-command"
-    ).textContent = `git add extensions/vscode/package.json && git commit -m "Bump version to ${cleanVersion}"`;
-    document.getElementById("push-command").textContent = `git push origin ${version}-vscode-release`;
-    document.getElementById("target-branch").textContent = `${version}-vscode-release`;
-    document.getElementById("target-tag").textContent = `${version}-vscode`;
-    document.getElementById("previous-tag").textContent = previousVersion;
+      "create-release-branch-command"
+    ).textContent = `git checkout -b ${version}-vscode-release ${baseBranch}`;
+    document.getElementById("target-version").textContent = cleanVersion;
+    document.getElementById("push-release-branch-command").textContent = `git push origin ${version}-vscode-release`;
+
+    // Generate GitHub release URL with query parameters
+    const { owner, repo } = this.currentRepo;
+    const releaseParams = new URLSearchParams({
+      tag: `${version}-vscode`,
+      target: `${version}-vscode-release`,
+    });
+
+    const releaseUrl = `https://github.com/${owner}/${repo}/releases/new?${releaseParams.toString()}`;
+    document.getElementById("create-release-link").href = releaseUrl;
+
+    // Update the instruction text with the actual latest release
+    const vscodeReleases = this.releases.filter((release) => release.tag_name.endsWith("-vscode"));
+    const latestRelease = vscodeReleases.find((release) => !release.prerelease);
+    const latestReleaseTag = latestRelease ? latestRelease.tag_name : "latest release";
+
+    const instructionElement = document.querySelector(".github-release-instructions .step-instruction");
+    instructionElement.textContent = `This will open GitHub, select Previous tag: ${latestReleaseTag}, click "Generate release notes" and "Publish release"!`;
   }
 
   getNextPatchVersion(currentVersion) {
@@ -369,91 +396,181 @@ class ReleaseApp {
     const { owner, repo } = this.currentRepo;
     const releaseBranchName = `${version}-vscode-release`;
 
-    // Reset all checks to pending
-    const checks = ["step1-check", "step2-check", "step5-check", "step6-check", "step7-check"];
+    // Reset all checks
+    const checks = [
+      "release-branch-exists-check",
+      "package-version-check",
+      "github-release-published-check",
+    ];
     checks.forEach((checkId) => {
       const check = document.getElementById(checkId);
       if (check) {
-        const indicator = check.querySelector(".indicator");
-        indicator.textContent = "⏳";
-        indicator.className = "indicator pending";
         check.className = "check-item";
       }
     });
 
-    // Check Step 1: Release branch exists
+    // Check both steps in parallel with single branch check
     try {
       const branchExists = await this.api.checkBranchExists(owner, repo, releaseBranchName);
-      const step1Check = document.getElementById("step1-check");
+      const branchExistsCheck = document.getElementById("release-branch-exists-check");
+      const packageVersionCheck = document.getElementById("package-version-check");
       const branchUrl = `https://github.com/${owner}/${repo}/tree/${releaseBranchName}`;
 
+      // Step 1: Branch exists check
       if (branchExists) {
-        this.updateCheckStatus(
-          step1Check,
+        this.updateStatus(
+          branchExistsCheck,
           true,
-          `<a href="${branchUrl}" target="_blank" class="branch-link">${releaseBranchName}</a> ✓`
+          `<a href="${branchUrl}" target="_blank" class="branch-link">Branch ${releaseBranchName} found</a>`
         );
-      } else {
-        this.updateCheckStatus(step1Check, false, "Release branch missing. Run command to create branch");
-      }
-    } catch (error) {
-      const step1Check = document.getElementById("step1-check");
-      this.updateCheckStatus(step1Check, false, "Error checking release branch");
-    }
 
-    // Check Step 2: Package.json version updated (only if branch exists)
-    try {
-      const branchExists = await this.api.checkBranchExists(owner, repo, releaseBranchName);
-      const step2Check = document.getElementById("step2-check");
+        // Step 2: Package.json version check (only if branch exists)
+        try {
+          const branchPackageJson = await this.api.getPackageJson(owner, repo, releaseBranchName);
+          const expectedVersion = version.replace(/^v/, "");
+          const actualVersion = branchPackageJson.version;
+          const packageJsonPath =
+            owner === "continuedev" && repo === "continue" ? "extensions/vscode/package.json" : "package.json";
 
-      if (branchExists) {
-        // Get package.json from release branch
-        const branchPackageJson = await this.api.getPackageJson(owner, repo, releaseBranchName);
-        const expectedVersion = version.replace(/^v/, "");
-        const actualVersion = branchPackageJson.version;
-        const packageJsonPath =
-          owner === "continuedev" && repo === "continue" ? "extensions/vscode/package.json" : "package.json";
-        const packageJsonUrl = `https://github.com/${owner}/${repo}/blob/${releaseBranchName}/${packageJsonPath}`;
+          // Build URL with line number if available
+          let packageJsonUrl = `https://github.com/${owner}/${repo}/blob/${releaseBranchName}/${packageJsonPath}`;
+          if (branchPackageJson._versionLineNumber) {
+            packageJsonUrl += `#L${branchPackageJson._versionLineNumber}`;
+          }
 
-        if (actualVersion === expectedVersion) {
-          this.updateCheckStatus(
-            step2Check,
-            true,
-            `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version = v${actualVersion}</a>`
-          );
-        } else {
-          this.updateCheckStatus(
-            step2Check,
-            false,
-            `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version = v${actualVersion}</a> needs v${expectedVersion}`
-          );
+          if (actualVersion === expectedVersion) {
+            this.updateStatus(
+              packageVersionCheck,
+              true,
+              `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version == v${expectedVersion}</a>`
+            );
+          } else {
+            this.updateStatus(
+              packageVersionCheck,
+              false,
+              `<a href="${packageJsonUrl}" target="_blank" class="branch-link">package.json version != v${expectedVersion}</a> (currently v${actualVersion})`
+            );
+          }
+        } catch (error) {
+          this.updateStatus(packageVersionCheck, false, "Error checking package.json version");
         }
+
+        // Check for cherry-picked commits if branch exists
+        await this.checkCherryPickedCommits(owner, repo, version, releaseBranchName);
       } else {
-        this.updateCheckStatus(step2Check, false, "Create release branch first");
+        this.updateStatus(branchExistsCheck, false, "Release branch missing, run command to create branch");
+        this.updateStatus(packageVersionCheck, false, "Release branch not created");
+
+        this.hideCherryPickInfo();
       }
     } catch (error) {
-      const step2Check = document.getElementById("step2-check");
-      this.updateCheckStatus(step2Check, false, "Error checking package.json version");
+      const branchExistsCheck = document.getElementById("release-branch-exists-check");
+      const packageVersionCheck = document.getElementById("package-version-check");
+      this.updateStatus(branchExistsCheck, false, "Error checking release branch");
+      this.updateStatus(packageVersionCheck, false, "Release branch not created");
+      this.hideCherryPickInfo();
     }
+
+    // Step 6: Check if GitHub release exists with target version tag (independent of branch)
+    await this.checkGitHubReleaseExists(owner, repo, version);
 
     // Additional checks can be added here for other steps
   }
 
-  updateCheckStatus(checkElement, isValid, message) {
-    const indicator = checkElement.querySelector(".indicator");
-    const text = checkElement.querySelector("span:last-child");
+  updateStatus(checkElement, isValid, message) {
+    const text = checkElement.querySelector("span");
 
     if (isValid) {
       checkElement.className = "check-item success";
-      indicator.textContent = "✅";
-      indicator.className = "indicator success";
     } else {
       checkElement.className = "check-item danger";
-      indicator.textContent = "❌";
-      indicator.className = "indicator danger";
     }
 
     text.innerHTML = message; // Use innerHTML to support links
+  }
+
+  async checkCherryPickedCommits(owner, repo, version, releaseBranchName) {
+    try {
+      // Compare target release branch to from-prerelease-version branch
+      const fromVersionInput = document.getElementById("from-prerelease-version").value.trim();
+      if (!fromVersionInput) {
+        this.hideCherryPickInfo();
+        return;
+      }
+
+      const baseBranch = fromVersionInput;
+      const comparison = await this.api.compareCommits(owner, repo, baseBranch, releaseBranchName);
+
+      // Always show the comparison section with link, even if no commits
+      if (comparison && comparison.commits && comparison.commits.length > 0) {
+        this.showCherryPickInfo(owner, repo, baseBranch, releaseBranchName, comparison.commits);
+      } else {
+        this.showCherryPickInfo(owner, repo, baseBranch, releaseBranchName, []);
+      }
+    } catch (error) {
+      this.hideCherryPickInfo();
+    }
+  }
+
+  showCherryPickInfo(owner, repo, baseBranch, releaseBranch, commits) {
+    const cherryPickInfo = document.getElementById("cherry-picked-commits-info");
+    const cherryPickList = document.getElementById("cherry-picked-commits-list");
+    const compareLink = document.getElementById("github-compare-link");
+
+    // Clear existing list
+    cherryPickList.innerHTML = "";
+
+    // Add commits to list or show "None"
+    if (commits.length === 0) {
+      const li = document.createElement("li");
+      li.textContent = "None";
+      cherryPickList.appendChild(li);
+    } else {
+      commits.forEach((commit) => {
+        const li = document.createElement("li");
+        const shortSha = commit.sha.substring(0, 7);
+        const message = commit.commit.message.split("\n")[0]; // First line only
+        const commitUrl = `https://github.com/${owner}/${repo}/commit/${commit.sha}`;
+
+        li.innerHTML = `<a href="${commitUrl}" target="_blank" class="commit-link">${shortSha}</a> ${message}`;
+        cherryPickList.appendChild(li);
+      });
+    }
+
+    // Set compare link
+    const compareUrl = `https://github.com/${owner}/${repo}/compare/${baseBranch}...${releaseBranch}`;
+    compareLink.href = compareUrl;
+
+    // Show the section
+    cherryPickInfo.style.display = "block";
+  }
+
+  hideCherryPickInfo() {
+    const cherryPickInfo = document.getElementById("cherry-picked-commits-info");
+    cherryPickInfo.style.display = "none";
+  }
+
+  async checkGitHubReleaseExists(owner, repo, version) {
+    const githubReleaseCheck = document.getElementById("github-release-published-check");
+    const targetReleaseTag = `${version}-vscode`;
+
+    try {
+      // Check if release exists by looking through existing releases
+      const targetRelease = this.releases.find((release) => release.tag_name === targetReleaseTag);
+
+      if (targetRelease) {
+        const releaseUrl = `https://github.com/${owner}/${repo}/releases/tag/${targetReleaseTag}`;
+        this.updateStatus(
+          githubReleaseCheck,
+          true,
+          `<a href="${releaseUrl}" target="_blank" class="release-link">Release ${targetReleaseTag} published</a>`
+        );
+      } else {
+        this.updateStatus(githubReleaseCheck, false, `GitHub release ${targetReleaseTag} not found`);
+      }
+    } catch (error) {
+      this.updateStatus(githubReleaseCheck, false, "Error checking GitHub release status");
+    }
   }
 
   showSection(sectionId) {
