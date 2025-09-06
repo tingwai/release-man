@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📦 Release Man - Your GitHub Release Helper</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📦 Release Man</h1>
+            <p>Your GitHub Release Helper</p>
+        </header>
+
+        <!-- Repository Setup -->
+        <section class="card" id="repo-setup">
+            <h2>🔍 Repository Setup</h2>
+            <div class="input-group">
+                <input type="text" id="repo-input" placeholder="owner/repo-name" value="continuedev/continue" autocomplete="off">
+                <button id="analyze-btn" class="btn btn-primary">Start</button>
+            </div>
+            <div class="error" id="repo-error"></div>
+        </section>
+
+        <!-- Current Status (Hidden initially) -->
+        <section class="card hidden" id="current-status">
+            <div class="card-header">
+                <h2>📊 Current Status</h2>
+                <span class="status-badge" id="status-badge">Auto-refreshed</span>
+            </div>
+            <div class="status-grid">
+                <div class="status-item">
+                    <label>Latest Release:</label>
+                    <span id="latest-release">-</span>
+                </div>
+                <div class="status-item">
+                    <label>Latest Pre-release:</label>
+                    <span id="latest-prerelease">-</span>
+                </div>
+                <div class="status-item">
+                    <label>Package.json:</label>
+                    <span id="package-version">-</span>
+                    <span id="version-match" class="indicator"></span>
+                </div>
+                <div class="status-item">
+                    <label>Last Updated:</label>
+                    <span id="last-updated">-</span>
+                </div>
+                <div class="status-item">
+                    <label>Commits since:</label>
+                    <span id="commits-since">-</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Plan Release (Hidden initially) -->
+        <section class="card hidden" id="plan-release">
+            <h2>🚀 Plan Release</h2>
+            <div class="input-group">
+                <label for="version-input">Target Release Version:</label>
+                <input type="text" id="version-input" placeholder="v1.2.5" autocomplete="off">
+            </div>
+
+            <div class="release-steps-section hidden" id="release-process">
+                <h3>📋 Release Process:</h3>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 1: Create Release Branch</h4>
+                        <span class="step-indicator pending" id="step1-indicator">⏳</span>
+                    </div>
+                    <code class="command" id="branch-command">git branch v1.2.5-vscode-release v1.3.x-vscode</code>
+                    <button class="copy-btn" onclick="copyToClipboard('branch-command')">Copy</button>
+                    <div class="check-item" id="step1-check">
+                        <span class="indicator pending">⏳</span>
+                        <span>Release branch status</span>
+                    </div>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 2: Update Package Version</h4>
+                        <span class="step-indicator pending" id="step3-indicator">⏳</span>
+                    </div>
+                    <p class="step-instruction">Bump version to <strong id="target-version">1.2.5</strong> in <code>extensions/vscode/package.json</code></p>
+                    <div class="check-item" id="step3-check">
+                        <span class="indicator pending">⏳</span>
+                        <span>Package.json version updated</span>
+                    </div>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 3: Cherry-pick Hotfixes (Optional)</h4>
+                        <span class="step-indicator manual" id="step4-indicator">👤</span>
+                    </div>
+                    <p class="step-instruction">Run <code>git cherry-pick &lt;commit-hash&gt;</code> for any regression fixes</p>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 4: Smoke Testing</h4>
+                        <span class="step-indicator manual" id="step5-indicator">👤</span>
+                    </div>
+                    <p class="step-instruction">Perform necessary smoke testing</p>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 5: Commit Changes</h4>
+                        <span class="step-indicator pending" id="step6-indicator">⏳</span>
+                    </div>
+                    <code class="command" id="commit-command">git add extensions/vscode/package.json && git commit -m "Bump version to 1.2.5"</code>
+                    <button class="copy-btn" onclick="copyToClipboard('commit-command')">Copy</button>
+                    <div class="check-item" id="step6-check">
+                        <span class="indicator pending">⏳</span>
+                        <span>Changes committed</span>
+                    </div>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 6: Push Release Branch</h4>
+                        <span class="step-indicator pending" id="step7-indicator">⏳</span>
+                    </div>
+                    <code class="command" id="push-command">git push origin v1.2.5-vscode-release</code>
+                    <button class="copy-btn" onclick="copyToClipboard('push-command')">Copy</button>
+                    <div class="check-item" id="step7-check">
+                        <span class="indicator pending">⏳</span>
+                        <span>Release branch pushed</span>
+                    </div>
+                </div>
+
+                <div class="step-group">
+                    <div class="step-header">
+                        <h4>Step 7: Create GitHub Release</h4>
+                        <span class="step-indicator manual" id="step8-indicator">👤</span>
+                    </div>
+                    <div class="github-release-instructions">
+                        <p>Go to <a href="https://github.com/continuedev/continue/releases/new" target="_blank" class="external-link">GitHub Releases</a> and:</p>
+                        <ol>
+                            <li>Target branch: <strong id="target-branch">v1.2.5-vscode-release</strong></li>
+                            <li>Create tag: <strong id="target-tag">v1.2.5-vscode</strong></li>
+                            <li>Set previous tag to: <strong id="previous-tag">v1.2.4-vscode</strong></li>
+                            <li>Click "Generate release notes"</li>
+                            <li>Check "Set as the latest release"</li>
+                            <li>Click "Publish release" 🚀</li>
+                        </ol>
+                    </div>
+                    <div class="check-item" id="step8-check">
+                        <span class="indicator pending">⏳</span>
+                        <span>GitHub release published</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Release Steps (Hidden initially) -->
+        <section class="card hidden" id="release-steps">
+            <h2>🛠 Release Steps</h2>
+            <div class="steps-list">
+                <div class="step">
+                    <h4>1. Update package.json version</h4>
+                    <code class="command" id="npm-command">npm version patch</code>
+                    <button class="copy-btn" onclick="copyToClipboard('npm-command')">Copy</button>
+                </div>
+                <div class="step">
+                    <h4>2. Create and push git tag</h4>
+                    <code class="command" id="git-tag-command">git tag v2.1.5</code>
+                    <button class="copy-btn" onclick="copyToClipboard('git-tag-command')">Copy</button>
+                    <code class="command" id="git-push-command">git push origin v2.1.5</code>
+                    <button class="copy-btn" onclick="copyToClipboard('git-push-command')">Copy</button>
+                </div>
+                <div class="step">
+                    <h4>3. Create GitHub release</h4>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="generate-notes-btn">Generate Release Notes</button>
+                        <button class="btn btn-success" id="create-release-btn">Create Release</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading overlay -->
+        <div class="loading hidden" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing repository...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
