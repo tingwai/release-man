@@ -186,19 +186,55 @@ class ReleaseApp {
       // Clear any existing selection to prevent text highlighting
       window.getSelection().removeAllRanges();
 
-      navigator.clipboard.writeText(text).then(() => {
-        const button = element.nextElementSibling;
-        const originalEmoji = button.textContent;
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          const button = element.nextElementSibling;
+          const originalText = button.textContent;
 
-        // Add copied class and change emoji
-        button.classList.add("copied");
-        button.textContent = "✅";
+          // Add copied class and change text
+          button.classList.add("copied");
+          button.textContent = "Copied";
 
-        setTimeout(() => {
-          button.classList.remove("copied");
-          button.textContent = originalEmoji;
-        }, 1000);
-      });
+          setTimeout(() => {
+            button.classList.remove("copied");
+            button.textContent = originalText;
+          }, 1500);
+        })
+        .catch(() => {
+          // Fallback for older browsers
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            const button = element.nextElementSibling;
+            const originalText = button.textContent;
+            button.classList.add("copied");
+            button.textContent = "Copied";
+            setTimeout(() => {
+              button.classList.remove("copied");
+              button.textContent = originalText;
+            }, 1500);
+          } catch (err) {
+            console.warn('Copy fallback failed:', err);
+            // Show error feedback
+            const button = element.nextElementSibling;
+            const originalText = button.textContent;
+            button.textContent = "Copy failed";
+            setTimeout(() => {
+              button.textContent = originalText;
+            }, 1500);
+          } finally {
+            document.body.removeChild(textArea);
+          }
+        });
     };
   }
 
@@ -446,17 +482,17 @@ class ReleaseApp {
   }
 
   async checkBranchExists(owner, repo, releaseBranchName, branchExists) {
-    const branchExistsCheck = document.getElementById("release-branch-exists-check");
+    const releaseBranchExistsCheck = document.getElementById("release-branch-exists-check");
     const branchUrl = `https://github.com/${owner}/${repo}/tree/${releaseBranchName}`;
 
     if (branchExists) {
       this.updateStatus(
-        branchExistsCheck,
+        releaseBranchExistsCheck,
         true,
         `<a href="${branchUrl}" target="_blank" class="branch-link">Branch ${releaseBranchName} found</a>`
       );
     } else {
-      this.updateStatus(branchExistsCheck, false, "Release branch missing, run command to create branch");
+      this.updateStatus(releaseBranchExistsCheck, false, "Release branch missing, run command to create branch");
     }
   }
 
@@ -464,7 +500,7 @@ class ReleaseApp {
     const packageVersionCheck = document.getElementById("package-version-check");
 
     if (!branchExists) {
-      this.updateStatus(packageVersionCheck, false, "Release branch not created");
+      this.updateStatus(packageVersionCheck, false, "Release branch missing");
       return;
     }
 
@@ -504,11 +540,11 @@ class ReleaseApp {
 
     if (isValid) {
       checkElement.className = "check-item success";
+      text.innerHTML = `✅ ${message}`;
     } else {
       checkElement.className = "check-item danger";
+      text.innerHTML = `❌ ${message}`;
     }
-
-    text.innerHTML = message; // Use innerHTML to support links
   }
 
   async checkCherryPickedCommits(owner, repo, releaseBranchName) {
@@ -573,7 +609,7 @@ class ReleaseApp {
   }
 
   async checkGitHubReleaseExists(owner, repo, version) {
-    const githubReleaseCheck = document.getElementById("github-release-published-check");
+    const githubReleasePublishedCheck = document.getElementById("github-release-published-check");
     const targetReleaseTag = `${version}-vscode`;
 
     try {
@@ -583,15 +619,15 @@ class ReleaseApp {
       if (targetRelease) {
         const releaseUrl = `https://github.com/${owner}/${repo}/releases/tag/${targetReleaseTag}`;
         this.updateStatus(
-          githubReleaseCheck,
+          githubReleasePublishedCheck,
           true,
-          `<a href="${releaseUrl}" target="_blank" class="release-link">Release ${targetReleaseTag} published</a>`
+          `<a href="${releaseUrl}" target="_blank" class="release-exists-check-link">Release ${targetReleaseTag} published</a>`
         );
       } else {
-        this.updateStatus(githubReleaseCheck, false, `GitHub release ${targetReleaseTag} not found`);
+        this.updateStatus(githubReleasePublishedCheck, false, `GitHub release ${targetReleaseTag} not found`);
       }
     } catch (error) {
-      this.updateStatus(githubReleaseCheck, false, "Error checking GitHub release status");
+      this.updateStatus(githubReleasePublishedCheck, false, "Error checking GitHub release status");
     }
   }
 

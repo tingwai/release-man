@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📦 Release Man - Your GitHub Release Helper</title>
+    <title>Release Man - Your GitHub Release Helper</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
             <h2>🔍 Repository</h2>
             <div class="input-group">
                 <input type="text" id="repo-input" placeholder="owner/repo-name" value="continuedev/continue" autocomplete="off">
-                <button id="analyze-btn" class="btn btn-primary">Start</button>
+                <button id="analyze-btn" class="btn btn-primary">Analyze</button>
             </div>
             <div class="error" id="repo-error"></div>
         </section>
@@ -68,7 +68,7 @@
                     </div>
                     <div class="command-group">
                         <code class="command" id="create-release-branch-command">git branch v1.2.5-vscode-release v1.3.x-vscode</code>
-                        <span class="copy-btn" onclick="copyToClipboard('create-release-branch-command')">📋</span>
+                        <span class="copy-btn" onclick="copyToClipboard('create-release-branch-command')">Copy</span>
                     </div>
                     <div class="check-item" id="release-branch-exists-check">
                         <span>Release branch status</span>
@@ -104,10 +104,10 @@
                     </div>
                     <div class="command-group">
                         <code class="command" id="push-release-branch-command">git push origin v1.2.5-vscode-release</code>
-                        <span class="copy-btn" onclick="copyToClipboard('push-release-branch-command')">📋</span>
+                        <span class="copy-btn" onclick="copyToClipboard('push-release-branch-command')">Copy</span>
                     </div>
                     <div class="cherry-pick-info" id="cherry-picked-commits-info" style="display: none;">
-                        <h5>📋 Cherry-picked commits:</h5>
+                        <h5>Cherry-picked commits:</h5>
                         <ul id="cherry-picked-commits-list"></ul>
                         <a id="github-compare-link" href="#" target="_blank" class="external-link">View full comparison on GitHub</a>
                     </div>
@@ -130,7 +130,7 @@
 
         <!-- Release Steps (Hidden initially) -->
         <section class="card hidden" id="release-steps">
-            <h2>🛠 Release Steps</h2>
+            <h2>Release Steps</h2>
             <div class="steps-list">
                 <div class="step">
                     <h4>1. Update package.json version</h4>
