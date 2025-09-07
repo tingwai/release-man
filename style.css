@@ -604,7 +604,7 @@ a:not([class]):hover {
 
 .step-group {
     margin-bottom: 2rem;
-    padding: 1.25rem;
+    padding: 1rem 1.5rem;
     background: var(--bg-tertiary);
     border-radius: var(--radius);
     border: 1px solid var(--border-light);
@@ -850,7 +850,7 @@ a:not([class]):hover {
     }
 
     .step-group {
-        padding: 1rem;
+        padding: 1rem 1.5rem;
     }
 
     .status-item {
