@@ -423,7 +423,7 @@ class ReleaseApp {
     const latestReleaseTag = latestRelease ? latestRelease.tag_name : "latest release";
 
     const instructionElement = document.querySelector(".github-release-instructions .step-instruction");
-    instructionElement.textContent = `This will open GitHub, then select Previous tag: ${latestReleaseTag}, click "Generate release notes" and "Publish release"!`;
+    instructionElement.innerHTML = `This will open GitHub, then select <strong>"Previous tag: ${latestReleaseTag}"</strong>, click <strong>"Generate release notes"</strong> and <strong>"Publish release"</strong>!`;
   }
 
   getNextPatchVersion(currentVersion) {
