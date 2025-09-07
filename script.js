@@ -29,13 +29,7 @@ class GitHubAPI {
     return this.request(`/repos/${owner}/${repo}/releases`);
   }
 
-  async getBranches(owner, repo) {
-    return this.request(`/repos/${owner}/${repo}/branches`);
-  }
 
-  async getTags(owner, repo) {
-    return this.request(`/repos/${owner}/${repo}/tags`);
-  }
 
   async checkBranchExists(owner, repo, branchName) {
     try {
@@ -54,14 +48,6 @@ class GitHubAPI {
     }
   }
 
-  async checkTagExists(owner, repo, tagName) {
-    try {
-      await this.request(`/repos/${owner}/${repo}/git/refs/tags/${tagName}`);
-      return true;
-    } catch {
-      return false;
-    }
-  }
 
   async getPackageJson(owner, repo, branch = null) {
     try {
@@ -92,14 +78,6 @@ class GitHubAPI {
     }
   }
 
-  async getCommitsSince(owner, repo, sha) {
-    try {
-      const response = await this.request(`/repos/${owner}/${repo}/commits?sha=main&since=${sha}`);
-      return response.length;
-    } catch {
-      return 0;
-    }
-  }
 }
 
 // Version utilities
@@ -110,52 +88,8 @@ class VersionUtils {
     return semverRegex.test(cleanVersion);
   }
 
-  static compareSemver(version1, version2) {
-    const clean1 = version1.replace(/^v/, "").split("-")[0];
-    const clean2 = version2.replace(/^v/, "").split("-")[0];
 
-    const parts1 = clean1.split(".").map(Number);
-    const parts2 = clean2.split(".").map(Number);
 
-    for (let i = 0; i < 3; i++) {
-      if (parts1[i] > parts2[i]) return 1;
-      if (parts1[i] < parts2[i]) return -1;
-    }
-    return 0;
-  }
-
-  static getNextVersion(currentVersion, type = "patch") {
-    const clean = currentVersion.replace(/^v/, "").split("-")[0];
-    const parts = clean.split(".").map(Number);
-
-    switch (type) {
-      case "major":
-        return `v${parts[0] + 1}.0.0`;
-      case "minor":
-        return `v${parts[0]}.${parts[1] + 1}.0`;
-      case "patch":
-      default:
-        return `v${parts[0]}.${parts[1]}.${parts[2] + 1}`;
-    }
-  }
-
-  static isNextVersion(current, next) {
-    const cleanCurrent = current.replace(/^v/, "").split("-")[0];
-    const cleanNext = next.replace(/^v/, "").split("-")[0];
-
-    const currentParts = cleanCurrent.split(".").map(Number);
-    const nextParts = cleanNext.split(".").map(Number);
-
-    // Check if it's exactly one version increment
-    if (nextParts[2] === currentParts[2] + 1 && nextParts[1] === currentParts[1] && nextParts[0] === currentParts[0])
-      return "patch";
-
-    if (nextParts[1] === currentParts[1] + 1 && nextParts[2] === 0 && nextParts[0] === currentParts[0]) return "minor";
-
-    if (nextParts[0] === currentParts[0] + 1 && nextParts[1] === 0 && nextParts[2] === 0) return "major";
-
-    return false;
-  }
 }
 
 // Main App
@@ -164,7 +98,6 @@ class ReleaseApp {
     this.api = new GitHubAPI();
     this.currentRepo = null;
     this.repoData = null;
-    this.packageData = null;
     this.releases = null;
 
     this.initEventListeners();
@@ -211,7 +144,7 @@ class ReleaseApp {
           document.body.appendChild(textArea);
           textArea.focus();
           textArea.select();
-          
+
           try {
             document.execCommand('copy');
             const button = element.nextElementSibling;
@@ -375,22 +308,6 @@ class ReleaseApp {
     // Don't hide the section if invalid - just don't update it
   }
 
-  updateCheck(checkElement, isValid, message) {
-    const indicator = checkElement.querySelector(".indicator");
-    const text = checkElement.querySelector("span:last-child");
-
-    if (isValid) {
-      checkElement.className = "check-item success";
-      indicator.textContent = "✅";
-      indicator.className = "indicator success";
-    } else {
-      checkElement.className = "check-item danger";
-      indicator.textContent = "❌";
-      indicator.className = "indicator danger";
-    }
-
-    text.textContent = message;
-  }
 
   generateReleaseSteps(version) {
     const cleanVersion = version.replace(/^v/, "");
